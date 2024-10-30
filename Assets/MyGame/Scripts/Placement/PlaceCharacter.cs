@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
@@ -15,8 +15,7 @@ public class PlaceCharacter : NetworkBehaviour
 
 
     public static event Action characterPlaced;
-    // Update is called once per frame
-
+    
     private void Start()
     {
         mainCam = GameObject.FindObjectOfType<Camera>();
@@ -24,12 +23,14 @@ public class PlaceCharacter : NetworkBehaviour
 
     void Update()
     {
-        //if (AllPlayerDataManager.Instance != default &&
-            //AllPlayerDataManager.Instance.GetHasPlacerPlaced(NetworkManager.Singleton.LocalClientId)) return;
+        if (AllPlayerDataManager.Instance != default &&
+            AllPlayerDataManager.Instance.GetHasPlacerPlaced(NetworkManager.
+                                                   Singleton.LocalClientId)) return;
 
 #if UNITY_EDITOR
         if (Input.GetMouseButtonDown(0))
         {
+            // không đặt nhân vật khi chạm vào UI
             if (EventSystem.current.IsPointerOverGameObject())
             {
                 Debug.Log("UI Hit was recognized");
@@ -59,7 +60,7 @@ public class PlaceCharacter : NetworkBehaviour
                 return;
             }
 
-            Debug.Log("Touch detected, fingerId: " + touch.fingerId);  // Debugging line
+            Debug.Log("Touch detected, fingerId: " + touch.fingerId);// Debugging line
 
 
             if (EventSystem.current.IsPointerOverGameObject(touch.fingerId))
@@ -80,7 +81,8 @@ public class PlaceCharacter : NetworkBehaviour
         if (Physics.Raycast(ray, out hit))
         {
             Quaternion rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
-            SpawnPlayerServerRpc(hit.point, rotation, NetworkManager.Singleton.LocalClientId);
+            SpawnPlayerServerRpc(hit.point, rotation, NetworkManager.Singleton.
+                                                                       LocalClientId);
         }
     }
 
@@ -94,6 +96,6 @@ public class PlaceCharacter : NetworkBehaviour
 
         characterNetworkObject.SpawnWithOwnership(callerID);
 
-        //AllPlayerDataManager.Instance.AddPlacedPlayer(callerID);
+        AllPlayerDataManager.Instance.AddPlacedPlayer(callerID);
     }
 }
