@@ -13,6 +13,11 @@ public class BulletData : NetworkBehaviour
 
     public static event Action<(ulong from, ulong to)> OnHitPlayer;
 
+    public override void OnNetworkSpawn()
+    {
+        DeactivateSelfDelay();
+    }
+
     [ServerRpc(RequireOwnership = false)]
     public void SetOwnershipServerRpc(ulong id)
     {
@@ -22,6 +27,8 @@ public class BulletData : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SetBulletIsActiveServerRpc(bool isActive)
     {
+        if (!GetComponent<NetworkObject>()) return;
+
         isActiveSelf.Value = isActive;
 
         if (isActive == false)
@@ -59,9 +66,15 @@ public class BulletData : NetworkBehaviour
                     OnHitPlayer?.Invoke(fromShooterToHit);
 
                     SetBulletIsActiveServerRpc(false);
+
+                    return;
                 }
             }
-            SetBulletIsActiveServerRpc(false);
+            else
+            {
+                SetBulletIsActiveServerRpc(false);
+            }
+            
         }
     }
 

@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
 using System;
+using static UnityEditor.PlayerSettings;
+using System.Linq;
 
 public class AllPlayerDataManager : NetworkBehaviour
 {
     public static AllPlayerDataManager Instance;
 
     public event Action<ulong> OnPlayerDead;
+    public event Action<ulong> OnPlayerHealthChanged;
 
     private NetworkList<PlayerData> allPlayerData;
 
@@ -70,6 +73,72 @@ public class AllPlayerDataManager : NetworkBehaviour
     {
         NetworkManager.Singleton.OnClientConnectedCallback += AddNewClientToList;
         BulletData.OnHitPlayer += BulletDataOnHitPlayer;
+        KillPlayer.OnKillPlayer += KillPlayer_OnKillPlayer;
+        RestartGame.OnRestartGame += RestartGame_OnRestartGame;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        NetworkManager.Singleton.OnClientConnectedCallback -= AddNewClientToList;
+        BulletData.OnHitPlayer -= BulletDataOnHitPlayer;
+        KillPlayer.OnKillPlayer -= KillPlayer_OnKillPlayer;
+        RestartGame.OnRestartGame -= RestartGame_OnRestartGame;
+    }
+
+    private void RestartGame_OnRestartGame()
+    {
+        if (!IsServer) return;
+
+        List<NetworkObject> playerObjects = FindObjectsOfType<PlayerMovement>()
+            .Select(x => x.transform.GetComponent<NetworkObject>()).ToList();
+
+        List<NetworkObject> bulletObjects = FindObjectsOfType<BulletData>()
+            .Select(x => x.transform.GetComponent<NetworkObject>()).ToList();
+
+        foreach (var playerobj in playerObjects)
+        {
+            playerobj.Despawn();
+        }
+
+        foreach (var bulletobj in bulletObjects)
+        {
+            bulletobj.Despawn();
+        }
+
+        ResetNetworkList();
+    }
+
+    private void ResetNetworkList()
+    {
+        for (int i = 0; i < allPlayerData.Count; i++)
+        {
+            PlayerData resetPlayer = new PlayerData(
+                allPlayerData[i].clientID,
+                playerPlaced: false,
+                lifePoint: LIFEPOINT,
+                score: 0
+                );
+            allPlayerData[i] = resetPlayer;
+        }
+    }
+
+    private void KillPlayer_OnKillPlayer(ulong id)
+    {
+        (ulong, ulong) fromTo = new(555, id);
+        BulletDataOnHitPlayer(fromTo);
+    }
+
+    public float GetPlayerHealth(ulong id)
+    {
+        for (int i = 0; i < allPlayerData.Count; i++)
+        {
+            if (allPlayerData[i].clientID == id)
+            {
+                return allPlayerData[i].lifePoint;
+            }
+        }
+
+        return default;
     }
 
     private void BulletDataOnHitPlayer((ulong from, ulong to) ids)
@@ -106,6 +175,14 @@ public class AllPlayerDataManager : NetworkBehaviour
                 }
             }
         }
+
+        SyncReducePlayerHealthClientRpc(ids.to);
+    }
+
+    [ClientRpc]
+    private void SyncReducePlayerHealthClientRpc(ulong hitID)
+    {
+        OnPlayerHealthChanged?.Invoke(hitID);
     }
 
     private void AddNewClientToList(ulong clientID)

@@ -14,7 +14,7 @@ public class PlayerMovement : NetworkBehaviour
     private const float LOOKATPOINT_DELTA = 2f;
     private GameObject lookAtPoint;
 
-    public override void OnNetworkSpawn()
+    public override void OnNetworkSpawn() 
     {
         if (GetComponent<NetworkObject>().IsOwner)
         {

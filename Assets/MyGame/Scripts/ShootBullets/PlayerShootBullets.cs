@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
@@ -11,7 +11,7 @@ public class PlayerShootBullets : NetworkBehaviour
     private const float BULLET_DELAY = 0.2f;
     private const float SHOOTING_DELAY = 0.2f;
     private const float BULLET_SPEED = 5f;
-    private const float BULLET_ANGLE_AMPLYFY = 0.25f;
+    private const float BULLET_ANGLE_AMPLYFY = 0.11f;
     private const float BULLETSHOOTANGLEMAX = 25;
 
     private Transform bulletSpawnTransform;
@@ -26,7 +26,7 @@ public class PlayerShootBullets : NetworkBehaviour
     {
         bulletSpawnTransform = GetComponentInChildren<ShootBulletTransformReference>().
                                                                             transform;
-
+       
         if (GetComponent<NetworkObject>().IsOwner)
         {
             _playerInputControl = GetComponent<PlayerInputControls>();
@@ -36,8 +36,6 @@ public class PlayerShootBullets : NetworkBehaviour
 
             _playerInputControl.OnShootAngleInput +=
                                             _playerInputControlOnShootAngleInput;
-            _playerInputControl.OnShootAngleCanceled +=
-                                            _playerInputControlOnShootAngleCanceled;
 
         }
 
@@ -57,7 +55,8 @@ public class PlayerShootBullets : NetworkBehaviour
 
         while (true)
         {
-            StartShootBulletServerRpc(bulletShootAngle);
+            StartShootBulletServerRpc(bulletShootAngle,
+                                            NetworkManager.Singleton.LocalClientId);
 
             yield return new WaitForSeconds(BULLET_DELAY);
 
@@ -65,7 +64,7 @@ public class PlayerShootBullets : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void StartShootBulletServerRpc(float bulletShootAngle)
+    private void StartShootBulletServerRpc(float bulletShootAngle, ulong callerID)
     {
         Quaternion rotation = Quaternion.Euler(bulletShootAngle, 0, 1);
 
@@ -77,6 +76,8 @@ public class PlayerShootBullets : NetworkBehaviour
         NetworkObject bulletNetworkObject = bullet.GetComponent<NetworkObject>();
 
         bulletNetworkObject.Spawn();
+
+        bullet.GetComponent<BulletData>().SetOwnershipServerRpc(callerID);
 
         Rigidbody bulletRigitBody = bullet.GetComponent<Rigidbody>();
 
@@ -116,6 +117,17 @@ public class PlayerShootBullets : NetworkBehaviour
         throw new NotImplementedException();
     }
 
+    public override void OnNetworkDespawn()
+    {
+        if (GetComponent<NetworkObject>().IsOwner)
+        {
+            _playerInputControl.OnShootInput -= StartShooting;
+            _playerInputControl.OnShootInputCanceled -= StopShooting;
 
+            _playerInputControl.OnShootAngleInput -=
+                                            _playerInputControlOnShootAngleInput;
+
+        }
+    }
 
 }
